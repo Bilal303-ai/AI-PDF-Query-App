@@ -1,7 +1,10 @@
 from langchain.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformers
+import openai
+import numpy as np
 
+embedding_model = SentenceTransformers("all-MiniLM-L6-v2") # Load the embedding model
 
 def extract_text_and_generate_embeddings(pdf_path):
     # laod PDF
@@ -17,20 +20,22 @@ def extract_text_and_generate_embeddings(pdf_path):
     chunks = text_splitter.split_document(docs)
     
     # Generate embeddings
-    embedding_model = SentenceTransformers("all-MiniLM-L6-v2")
-    embeddings = [embedding_model.encode(chunk.page_content) for chunk in chunks]
+    embeddings = [embedding_model.encode(chunk.page_content, dtype=np.float32) for chunk in chunks]
     
     return chunks, embeddings
 
 
 # Store embeddings in PostgreSQL
-def store_embeddings(dbname, user, password, host, chunks, embeddings):
-    with psycopg.connect("dbname=dbname user=user password=password host=host") as conn:
+def store_embeddings(pool, pdf_filename chunks, embeddings):
+    with pool.connection() as conn:
         with conn.cursor as cur:
+            
+            # Enable pgvector extension
             cur.execute("""
                 CREATE EXTENSION IF NOT EXISTS vector
                 """)
             
+            # Create table for PDFs
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS pdfs (
                     id SERIAL PRIMARY KEY,
@@ -38,6 +43,7 @@ def store_embeddings(dbname, user, password, host, chunks, embeddings):
                     uploaded_at TIMESTAMP DEFAULT NOW())
                 """)
             
+            # Create table for embeddings
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS embeddings (
                     id SERIAL PRIMARY KEY,
@@ -46,6 +52,21 @@ def store_embeddings(dbname, user, password, host, chunks, embeddings):
                     embedding vector(384))
                 """)
             
+            # Add an index for faster similarity search
+            cur.execute("""
+                CREATE INDEX IF NOT EXISTS embedding_idx
+                ON embeddings USING ivfflat (embedding vector_cosine_ops)
+            """)
+            
+            # Check if PDF already exists
+            cur.execute("SELECT id from pdfs WHERE filename = %s", (pdf_filename,))
+            result = cur.fetchone()
+            if result:
+                pdf_id = result[0] # Reuse existing PDF ID
+            else:
+                cur.execute("INSERT INTO pdfs (filename) VALUES (%s) RETURNING id", (pdf_filename,))
+                pdf_id = cur.fetchone()[0]
+                
             for chunk, emb in zip(chunks, embeddings):
                 cur.execute(
                     "INSERT INTO embeddings (pdf_id, text, embedding) VALUES (%s, %s, %s)",
@@ -53,3 +74,36 @@ def store_embeddings(dbname, user, password, host, chunks, embeddings):
                 )
                 
             conn.commit()
+            
+            
+def query_similar_text(pool, user_query, pdf_id, top_k=5):
+    query_embedding = model.encode(user_query, convert_to_numpy=True).astype(float32).tolist()
+    
+    with pool.connection as conn:
+        with conn.cursor as cur:
+            cur.execute("""
+                SELECT text, embedding <=> %s AS similarity
+                FROM embeddings
+                WHERE pdf_id = %s
+                ORDER BY similarity
+                LIMIT %s
+            """, (query_embedding, pdf_id, top_k))
+            
+            results = cur.fetchall()
+    retrieved_vectors = [result[0] for result in results]
+    return retrieved_vectors
+
+
+def chat_with_llm(user_query, retrieved_vectors):
+    """Generate response using llm from retrieved context"""
+    context = "\n\n".join(retrieved_vectors)
+    
+    completion = openai.chat.completion.create(
+        model="gpt-4",
+        messages=[
+            {"role": "system", "content": "You are an AI assistant. Answer based on the provided context."},
+            {"role": "user", "content": f"Context: {context}\n\nUser Question: {user_query}"},
+        ]
+    )
+    return completion.choices[0].message.content
+    

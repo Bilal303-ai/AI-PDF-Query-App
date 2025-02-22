@@ -1,0 +1,4 @@
+Handle duplicate uploads of pdf
+Refine the embedding storage
+Handle large pdfs efficiently
+ANN indexing for even faster queries
