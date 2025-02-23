@@ -1,7 +1,6 @@
 import streamlit as st
 from backend import extract_text_and_generate_embeddings, store_embeddings, query_similar_text, chat_with_llm
 import psycopg
-from psycopg_pool import ConnectionPool
 import tempfile
 
 st.set_page_config(page_title="PDF Sage 📜✨", layout="wide")
