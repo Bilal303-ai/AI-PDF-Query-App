@@ -1,11 +1,11 @@
 import streamlit as st
-from backend import extract_text_and_generate_embeddings, store_embeddings, query_similar_text
+from backend import extract_text_and_generate_embeddings, store_embeddings, query_similar_text, chat_with_llm
 import psycopg
 from psycopg_pool import ConnectionPool
 import tempfile
 
-st.set_page_config(page_title="AI-Powered PDF Chat", layout="wide")
-st.title("AI-Powered PDF Chat")
+st.set_page_config(page_title="PDF Sage 📜✨", layout="wide")
+st.title("PDF Sage 📜✨")
 
 # Sidebar for userinputs
 st.sidebar.header("Configuration")
@@ -61,5 +61,37 @@ if uploaded_pdf:
     st.write("Generated embeddings successfully!")
     
     # Store embeddings in DB
-    store_embeddings(db_info, uploaded_pdf.name, chunks, embeddings)
+    pdf_id = store_embeddings(db_info, uploaded_pdf.name, chunks, embeddings)
     st.write("Embeddings stored successfullly in PostgreSQL!")
+    
+    
+# Integrate querying
+user_query = st.text_input("Enter your query: ")
+
+if user_query:
+    retrieved_results = query_similar_text(db_info, user_query, pdf_id)
+    retrieved_text = [row['text'] for row in retrieved_results]
+    
+    st.write("### Most relevant chunks:")
+    for idx, row in enumerate(retrieved_results):
+        st.write(f"**{idx+1}.** {row['text']}")
+        st.write(f"📊 **Distance:** {row['distance']:.4f}")
+        
+# Integrate llm
+llm_api = st.session_state["openai_api_key"]
+query_for_llm = st.text_input("Chat with a bot: ")
+if st.button("Explain"):
+    if query_for_llm:
+        if llm_api:
+            with st.spinner("Thinking..."):
+                llm_response = chat_with_llm(
+                            query_for_llm,
+                            retrieved_text,
+                            llm_api,
+                            )
+            
+            st.write("### Explanation: ")
+            st.write(llm_response)
+    
+    else:
+        st.warning("Please enter a query!")
