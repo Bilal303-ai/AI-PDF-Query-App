@@ -15,7 +15,6 @@ PDF Sage is an AI-powered application that allows users to upload PDFs, extract 
 - **Backend**: Python, LangChain, psycopg, Sentence Transformers, OpenAI API
 - **Database**: PostgreSQL with pgvector
 - **Frontend**: Streamlit
-- **Deployment**: Hugging Face Spaces
 
 ## Installation
 
