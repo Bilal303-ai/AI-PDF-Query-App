@@ -1,10 +1,11 @@
-from langchain.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from sentence_transformers import SentenceTransformers
+from sentence_transformers import SentenceTransformer
+import psycopg
 import openai
 import numpy as np
 
-embedding_model = SentenceTransformers("all-MiniLM-L6-v2") # Load the embedding model
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2") # Load the embedding model
 
 def extract_text_and_generate_embeddings(pdf_path):
     # laod PDF
@@ -17,7 +18,7 @@ def extract_text_and_generate_embeddings(pdf_path):
         chunk_overlap=50,
     )
     
-    chunks = text_splitter.split_document(docs)
+    chunks = text_splitter.split_documents(docs)
     
     # Generate embeddings
     embeddings = [embedding_model.encode(chunk.page_content, dtype=np.float32) for chunk in chunks]
@@ -26,10 +27,10 @@ def extract_text_and_generate_embeddings(pdf_path):
 
 
 # Store embeddings in PostgreSQL
-def store_embeddings(pool, pdf_filename chunks, embeddings):
-    with pool.connection() as conn:
-        with conn.cursor as cur:
-            
+def store_embeddings(db_info, pdf_filename, chunks, embeddings):
+    
+    with psycopg.connect(**db_info) as conn:
+        with conn.cursor() as cur:
             # Enable pgvector extension
             cur.execute("""
                 CREATE EXTENSION IF NOT EXISTS vector
@@ -80,7 +81,7 @@ def query_similar_text(pool, user_query, pdf_id, top_k=5):
     query_embedding = model.encode(user_query, convert_to_numpy=True).astype(float32).tolist()
     
     with pool.connection as conn:
-        with conn.cursor as cur:
+        with conn.cursor() as cur:
             cur.execute("""
                 SELECT text, embedding <=> %s AS similarity
                 FROM embeddings
