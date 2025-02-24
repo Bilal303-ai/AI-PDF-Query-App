@@ -2,6 +2,7 @@ import streamlit as st
 from backend import extract_text_and_generate_embeddings, store_embeddings, query_similar_text, chat_with_llm
 import psycopg
 import tempfile
+import openai
 
 st.set_page_config(page_title="PDF Sage 📜✨", layout="wide")
 st.title("PDF Sage 📜✨")
@@ -82,15 +83,20 @@ query_for_llm = st.text_input("Chat with a bot: ")
 if st.button("Explain"):
     if query_for_llm:
         if llm_api:
-            with st.spinner("Thinking..."):
-                llm_response = chat_with_llm(
-                            query_for_llm,
-                            retrieved_text,
-                            llm_api,
-                            )
-            
-            st.write("### Explanation: ")
-            st.write(llm_response)
+            try:
+                with st.spinner("Thinking..."):
+                    llm_response = chat_with_llm(
+                                query_for_llm,
+                                retrieved_text,
+                                llm_api,
+                                )
+                
+                st.write("### Explanation: ")
+                st.write(llm_response)
+            except openai.AuthenticationError:
+                st.error("Invalid API key!")
+            except Exception:
+                st.error("Oops, we can't connect! please try again")
     
     else:
         st.warning("Please enter a query!")

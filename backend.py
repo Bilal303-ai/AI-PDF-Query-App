@@ -40,7 +40,11 @@ def extract_text_and_generate_embeddings(pdf_path: str) -> Tuple[List[Dict[str, 
     
     return chunks, embeddings
 
-
+def clean_text(text: str) -> str:
+    """Remove NUL (0x00) bytes from text"""
+    return text.replace('\x00', "")
+    
+    
 # Store embeddings in PostgreSQL
 def store_embeddings(db_info: Dict[str, str], pdf_filename:str, 
                      chunks: List[Dict[str, str]], embeddings: List[np.ndarray]) -> int:
@@ -100,7 +104,7 @@ def store_embeddings(db_info: Dict[str, str], pdf_filename:str,
             for chunk, emb in zip(chunks, embeddings):
                 cur.execute(
                     "INSERT INTO embeddings (pdf_id, text, embedding) VALUES (%s, %s, %s)",
-                    (pdf_id, chunk.page_content, emb.tolist())
+                    (pdf_id, clean_text(chunk.page_content), emb.tolist())
                 )
                 
             conn.commit()
