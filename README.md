@@ -46,7 +46,6 @@ Ensure you have the following installed:
    - Ensure PostgreSQL is running.
    - Create a database: `CREATE DATABASE pdf_sage;`
    - Enable pgvector: `CREATE EXTENSION IF NOT EXISTS vector;`
-   - Update `config.py` with your database credentials.
 
 5. **Run the Application:**
    ```bash
