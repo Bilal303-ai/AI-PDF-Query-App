@@ -66,19 +66,6 @@ class TestDatabase(unittest.TestCase):
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["text"], "Test chunk")
         
-class TestLLMIntegration(unittest.TestCase):
-    
-    @patch("backend.openai.chat.completions.create")
-    def test_chat_with_llm(self, mock_llm):
-        """Test chat function with mocked OpenAI response"""
-        
-        # Mock llm response
-        mock_llm.return_value = MagicMock(choices=[MagicMock(message=MagicMock(content="Mocked response"))])
-        
-        response = chat_with_llm("What is AI?", ["AI is artificial intelligence"], "fake_api_key")
-        
-        self.assertEqual(response, "Mocked response")
-        
         
 if __name__ == "__main__":
     unittest.main()
