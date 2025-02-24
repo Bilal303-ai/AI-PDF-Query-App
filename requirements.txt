@@ -46,7 +46,6 @@ multidict==6.1.0
 mypy-extensions==1.0.0
 narwhals==1.27.1
 networkx==3.4.2
-numpy==2.2.3
 openai==1.64.0
 orjson==3.10.15
 packaging==24.2
