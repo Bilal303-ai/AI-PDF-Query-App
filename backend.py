@@ -25,18 +25,25 @@ def extract_text_and_generate_embeddings(pdf_path: str) -> Tuple[List[Dict[str, 
         Tuple[List[Dict[str, str]], List[np.ndarray]]: A tuple containing a list of text chunks and their corresponding embeddings
     """
     loader = PyPDFLoader(pdf_path)
-    docs = loader.load()
+    docs = loader.lazy_load()
     
     # Split text
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
+        chunk_size=1000,
         chunk_overlap=50,
     )
     
-    chunks = text_splitter.split_documents(docs)
+    chunks = []
+    embeddings = []
     
-    # Generate embeddings
-    embeddings = [embedding_model.encode(chunk.page_content, dtype=np.float32) for chunk in chunks]
+    for doc in docs:
+        if doc.page_content.strip():
+            chunks_in_doc = text_splitter.split_documents([doc])
+            chunks.extend(chunks_in_doc)
+    
+            # Generate embeddings
+            embeddings_in_doc = [embedding_model.encode(chunk.page_content, dtype=np.float32) for chunk in chunks_in_doc]
+            embeddings.extend(embeddings_in_doc)
     
     return chunks, embeddings
 
