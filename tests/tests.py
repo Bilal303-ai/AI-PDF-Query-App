@@ -10,7 +10,7 @@ class TestPDFProcessing(unittest.TestCase):
     def test_extract_text_and_generate_embeddings(self):
         """Test PDF extraction and embedding generation"""
         
-        chunks, embeddings = extract_text_and_generate_embeddings(r"C:\Users\Mohd Bilal Hasan\OneDrive\Desktop\Blue bash project\pdf-sage\tests\sample.pdf")
+        chunks, embeddings = extract_text_and_generate_embeddings(r"tests/sample.pdf")
         
         # Assertions
         self.assertEqual(len(chunks), len(embeddings)) # No. of chunks must be equal to no. of embeddings
