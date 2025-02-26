@@ -1,31 +1,22 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import numpy as np
-from sentence_transformers import SentenceTransformer
 from backend import extract_text_and_generate_embeddings, store_embeddings, query_similar_text, chat_with_llm
 
 
 class TestPDFProcessing(unittest.TestCase):
     
-    @patch("backend.PyPDFLoader")
-    @patch("backend.embedding_model.encode") 
-    def test_extract_text_and_generate_embeddings(self, mock_encode, mock_loader):
+
+    def test_extract_text_and_generate_embeddings(self):
         """Test PDF extraction and embedding generation"""
         
-        # Mock extracted text
-        mock_loader.return_value.load.return_value = [
-            MagicMock(page_content="This is a test document", metadata={})
-        ]
-        
-        # Mock embeddings
-        mock_encode.return_value = np.random.rand(384)
-        
-        chunks, embeddings = extract_text_and_generate_embeddings("test.pdf")
+        chunks, embeddings = extract_text_and_generate_embeddings(r"C:\Users\Mohd Bilal Hasan\OneDrive\Desktop\Blue bash project\pdf-sage\tests\sample.pdf")
         
         # Assertions
-        self.assertEqual(len(chunks), 1)
-        self.assertEqual(len(embeddings), 1)
-        self.assertEqual(len(embeddings[0]), 384) # Check embedding size
+        self.assertEqual(len(chunks), len(embeddings)) # No. of chunks must be equal to no. of embeddings
+        for chunk in chunks:
+            self.assertLess(len(chunk.page_content), 1001) # Max size of chunk should be 1000
+
         
 class TestDatabase(unittest.TestCase):
     
