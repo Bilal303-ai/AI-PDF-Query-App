@@ -12,23 +12,16 @@ st.sidebar.header("Configuration")
 
 # Database inputs
 st.sidebar.subheader("PostgreSQL Connection")
-st.session_state["db_name"] = st.sidebar.text_input("Database Name", value="")
-st.session_state["db_user"] = st.sidebar.text_input("User", value="")
-st.session_state["db_password"] = st.sidebar.text_input("Password", type="password", value="")
-st.session_state["db_host"] = st.sidebar.text_input("Host", value="")
+st.session_state["db_url"] =st.sidebar.text_input("Database URL", value="")
 
 # OpenAI API key
 st.sidebar.subheader("OpenAI API key (Optional)")
 st.session_state["openai_api_key"] = st.sidebar.text_input("API key", type="password", value="")
 
-db_info = {"dbname": st.session_state["db_name"], 
-            "user": st.session_state["db_user"],
-            "password": st.session_state["db_password"],
-            "host": st.session_state["db_host"]}
 # Function to test the database connection
 def test_db_connection():
     try:
-        conn = psycopg.connect(**db_info)
+        conn = psycopg.connect(st.session_state["db_url"])
         conn.close()
         return True
     except Exception as e:
@@ -61,7 +54,7 @@ if uploaded_pdf:
     st.write("Generated embeddings successfully!")
     
     # Store embeddings in DB
-    pdf_id = store_embeddings(db_info, uploaded_pdf.name, chunks, embeddings)
+    pdf_id = store_embeddings(st.session_state["db_url"], uploaded_pdf.name, chunks, embeddings)
     st.write("Embeddings stored successfullly in PostgreSQL!")
     
     
@@ -69,7 +62,7 @@ if uploaded_pdf:
 user_query = st.text_input("Enter your query: ")
 
 if user_query:
-    retrieved_results = query_similar_text(db_info, user_query, pdf_id)
+    retrieved_results = query_similar_text(st.session_state["db_url"], user_query, pdf_id)
     retrieved_text = [row['text'] for row in retrieved_results]
     
     st.write("### Most relevant chunks:")

@@ -7,9 +7,11 @@ from psycopg.rows import dict_row
 import openai
 import torch
 import numpy as np
+import os
 
 # Fix the  torch related bug
 torch.classes.__path__ = []
+
 
 # Load the embedding model
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2") # Load the embedding model
@@ -53,13 +55,13 @@ def clean_text(text: str) -> str:
     
     
 # Store embeddings in PostgreSQL
-def store_embeddings(db_info: Dict[str, str], pdf_filename:str, 
+def store_embeddings(db_url: str, pdf_filename:str, 
                      chunks: List[Dict[str, str]], embeddings: List[np.ndarray]) -> int:
     """
     Stores text embeddings in PostgreSQL and associates with a PDF.
     
     Args:
-        db_info (Dict[str, str]): Database connection parameters.
+        db_url (str): Database URL.
         pdf_filename (str)): Name of the uploaded PDF.
         chunks (List[Dict[str, str]]): List of text chunks
         embeddings (List[np.ndarray]): Corresponding embeddings for the chunks
@@ -68,7 +70,7 @@ def store_embeddings(db_info: Dict[str, str], pdf_filename:str,
         int: The ID of the stored PDF.
     """
     
-    with psycopg.connect(**db_info) as conn:
+    with psycopg.connect(db_url) as conn:
         with conn.cursor() as cur:
             # Enable pgvector extension
             cur.execute("""
@@ -91,19 +93,14 @@ def store_embeddings(db_info: Dict[str, str], pdf_filename:str,
                     text TEXT,
                     embedding vector(384))
                 """)
-            
-            # Add an index for faster similarity search
-            cur.execute("""
-                CREATE INDEX IF NOT EXISTS embedding_idx
-                ON embeddings USING ivfflat (embedding vector_l2_ops)
-                WITH (lists = 100)
-            """)
-            
-            # Check if PDF already exists
-            cur.execute("SELECT id from pdfs WHERE filename = %s", (pdf_filename,))
+    
+            cur.execute("SELECT id FROM pdfs WHERE filename = %s", (pdf_filename,))
             result = cur.fetchone()
+            
             if result:
-                pdf_id = result[0] # Reuse existing PDF ID
+                pdf_id = result[0]
+                return pdf_id # Don't store embeddings if PDF already exists
+            
             else:
                 cur.execute("INSERT INTO pdfs (filename) VALUES (%s) RETURNING id", (pdf_filename,))
                 pdf_id = cur.fetchone()[0]
@@ -118,12 +115,12 @@ def store_embeddings(db_info: Dict[str, str], pdf_filename:str,
             return pdf_id
             
             
-def query_similar_text(db_info: Dict[str, str], user_query: str, pdf_id: int, top_k: int=5) -> List[Dict[str, str]]:
+def query_similar_text(db_url: str, user_query: str, pdf_id: int, top_k: int=5) -> List[Dict[str, str]]:
     """
     Queries the database to find the most similar text chunks based on the user query.
     
     Args:
-        db_info (Dict[str, str]): Database connection parameters.
+        db_info (str): Database URL.
         user_query (str): The user's search query.
         pdf_id (int): The ID of the PDF being searched.
         top_k (int, optional): Number of top results to result. Defaults to 5.
@@ -133,7 +130,7 @@ def query_similar_text(db_info: Dict[str, str], user_query: str, pdf_id: int, to
     """
     query_embedding = np.array(embedding_model.encode(user_query, dtype=np.float32)).tolist()
     
-    with psycopg.connect(**db_info) as conn:
+    with psycopg.connect(db_url) as conn:
         with conn.cursor(row_factory=dict_row) as cur:
             cur.execute("""
                 SELECT text, embedding <-> %s::vector AS distance
