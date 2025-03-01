@@ -1,8 +1,9 @@
 import unittest
-from unittest.mock import patch, MagicMock
-import numpy as np
-from backend import extract_text_and_generate_embeddings, store_embeddings, query_similar_text, chat_with_llm
 import os
+import numpy as np
+from langchain_core.documents import Document
+from backend import extract_text_and_generate_embeddings, store_embeddings, query_similar_text, chat_with_llm
+
 
 class TestPDFProcessing(unittest.TestCase):
     
