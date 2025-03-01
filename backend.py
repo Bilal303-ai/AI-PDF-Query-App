@@ -7,7 +7,7 @@ from psycopg.rows import dict_row
 import openai
 import torch
 import numpy as np
-import os
+
 
 # Fix the  torch related bug
 torch.classes.__path__ = []
