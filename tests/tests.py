@@ -19,7 +19,54 @@ class TestPDFProcessing(unittest.TestCase):
 
         
 class TestDatabase(unittest.TestCase):
-    pass
+    def setUp(self):
+        self.db_url = os.getenv("DATABASE_URL")
+        self.pdf_filename = "test.pdf"
+        self.chunks = [Document(
+            page_content="This is a test document."
+        )]
+        self.embeddings = [np.random.rand(EMBEDDING_DIM).astype(np.float32)]
+        
+    def test_store_embeddings(self):
+        """Test that chunks and embeddings are stored in the DB"""
+        test_pdf_id = store_embeddings(
+            self.db_url,
+            self.pdf_filename,
+            self.chunks,
+            self.embeddings,
+        )
+        
+        # Check if tables 'pdf' and 'embeddings' exist
+        with psycopg.connect(self.db_url) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM
+                        pg_tables
+                    WHERE
+                        schemaname='public' AND
+                        tablename='pdfs'
+                )
+                """)
+                self.assertTrue(cur.fetchone()[0])
+                
+                cur.execute("""
+                SELECT EXISTS (
+                    SELECT FROM
+                        pg_tables
+                    WHERE
+                        schemaname='public' AND
+                        tablename='embeddings'
+                )
+                """)
+                self.assertTrue(cur.fetchone()[0])
+    
+    def tearDown(self):
+        with psycopg.connect(self.db_url) as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                DROP TABLE pdfs, embeddings;            
+                """)
         
         
 if __name__ == "__main__":
