@@ -1,6 +1,7 @@
 import unittest
 import os
 import numpy as np
+import psycopg
 from langchain_core.documents import Document
 from backend import extract_text_and_generate_embeddings, store_embeddings, query_similar_text, chat_with_llm
 
