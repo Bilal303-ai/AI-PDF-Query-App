@@ -31,6 +31,9 @@ class TestDatabase(unittest.TestCase):
         )]
         self.embeddings = [np.random.rand(EMBEDDING_DIM).astype(np.float32)]
         
+        self.conn = psycopg.connect(self.db_url)
+        self.cur = self.conn.cursor()
+        
     def test_store_embeddings(self):
         """Test that chunks and embeddings are stored in the DB"""
         test_pdf_id = store_embeddings(
@@ -41,36 +44,59 @@ class TestDatabase(unittest.TestCase):
         )
         
         # Check if tables 'pdf' and 'embeddings' exist
-        with psycopg.connect(self.db_url) as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                SELECT EXISTS (
-                    SELECT FROM
-                        pg_tables
-                    WHERE
-                        schemaname='public' AND
-                        tablename='pdfs'
-                )
-                """)
-                self.assertTrue(cur.fetchone()[0])
+        self.cur.execute("""
+        SELECT EXISTS (
+            SELECT FROM
+                pg_tables
+            WHERE
+                schemaname='public' AND
+                tablename='pdfs'
+        )
+        """)
+        
+        self.assertTrue(self.cur.fetchone()[0])
                 
-                cur.execute("""
-                SELECT EXISTS (
-                    SELECT FROM
-                        pg_tables
-                    WHERE
-                        schemaname='public' AND
-                        tablename='embeddings'
-                )
-                """)
-                self.assertTrue(cur.fetchone()[0])
-    
+        self.cur.execute("""
+        SELECT EXISTS (
+            SELECT FROM
+                pg_tables
+            WHERE
+                schemaname='public' AND
+                tablename='embeddings'
+        )
+        """)
+        
+        self.assertTrue(self.cur.fetchone()[0])
+                
+        # Check if the correct text is stored
+        self.cur.execute("""
+        SELECT text, embedding
+        FROM embeddings
+        WHERE pdf_id = %s
+        """, (test_pdf_id,))
+                
+        row = self.cur.fetchone()
+        self.assertEqual(row[0], self.chunks[0].page_content)
+        
+                
+    def test_query_similar_text(self):
+        """"Test that queries are retrieved successfully"""
+        retrieved_result = query_similar_text(
+            self.db_url,
+            "This is a test query",
+            pdf_id=1,
+            top_k=1,
+        )
+        
+        self.assertEqual(len(retrieved_result), 1)
+                   
     def tearDown(self):
-        with psycopg.connect(self.db_url) as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                DROP TABLE pdfs, embeddings;            
-                """)
+        self.cur.execute("""
+        DROP TABLE pdfs, embeddings;            
+        """)
+        
+        self.cur.close()        
+        self.conn.close()
         
         
 if __name__ == "__main__":
