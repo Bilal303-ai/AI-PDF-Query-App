@@ -81,10 +81,19 @@ class TestDatabase(unittest.TestCase):
                 
     def test_query_similar_text(self):
         """"Test that queries are retrieved successfully"""
+        # Store data
+        test_pdf_id = store_embeddings(
+            self.db_url,
+            self.pdf_filename,
+            self.chunks,
+            self.embeddings,
+        )
+        
+        # Retrieve data
         retrieved_result = query_similar_text(
             self.db_url,
             "This is a test query",
-            pdf_id=1,
+            test_pdf_id,
             top_k=1,
         )
         
